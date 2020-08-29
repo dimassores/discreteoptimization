@@ -1,8 +1,11 @@
+import dynamic_config as data
 import numpy as np
-value = [0, 5, 6, 3]
-weight = [0, 4, 5, 2]
-K = 9
-number_of_items = 3
+
+value = data.value
+weight = data.weight
+K = data.K
+number_of_items = data.number_of_items
+
 opt_matrix = np.empty([K+1, number_of_items+1])
 
 
