@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import numpy as np
-from pulp import *
+import pulp as pl
 
 
 def structure(input_data: str):
@@ -30,21 +30,21 @@ def read_data(file_location: str):
 
 def solve_it(input_data: str):
     items_conections, number_of_edges, number_of_vertices = structure(input_data)
-    number_of_possible_colors = number_of_vertices * 0.2  # magic number :/
+    number_of_possible_colors = int(number_of_vertices)
     y = range(number_of_possible_colors)
     nodes = range(number_of_vertices)
 
     # initializes lp problem
-    lp = LpProblem("Coloring Problem", LpMinimize)
+    lp = pl.LpProblem("Coloring Problem", pl.LpMinimize)
 
     # variables x_ij to indicate whether node i is colored by color j;
-    xij = LpVariable.dicts("x", (nodes, y), cat="Binary")
+    xij = pl.LpVariable.dicts("x", (nodes, y), cat="Binary")
 
     # variables yj to indicate whether color j was used
-    yj = LpVariable.dicts("y", y, cat="Binary")
+    yj = pl.LpVariable.dicts("y", y, cat="Binary")
 
     # objective is the sum of yj over all j
-    obj = lpSum(yj[j] for j in y)
+    obj = pl.lpSum(yj[j] for j in y)
     lp += obj, "Objective Function"
 
     # constraint s.t. each node uses exactly 1 color
@@ -67,10 +67,11 @@ def solve_it(input_data: str):
             lp += xij[i][j] <= yj[j], ""
 
     # constrinat for upper bound on # of colors used
-    lp += lpSum(yj[j] for j in y) <= number_of_possible_colors, ""
+    lp += pl.lpSum(yj[j] for j in y) <= number_of_possible_colors, ""
 
     # solves lp and prints optimal solution/objective value
-    lp.solve()
+    solver = pl.get_solver("COIN_CMD")
+    lp.solve(solver)
 
     all_variables = [
         variable.name for variable in lp.variables() if variable.varValue != 0
