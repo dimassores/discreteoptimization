@@ -1,2 +1,2 @@
 # Discrete Optimization
-Code for the Discrete Optmization course from coursera.
+Code for the Discrete Optimization course from coursera.
