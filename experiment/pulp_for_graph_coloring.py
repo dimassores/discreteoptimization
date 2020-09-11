@@ -1,20 +1,9 @@
-from pulp import *
 import sys
-from collections import namedtuple
-from typing import List, NamedTuple
 import numpy as np
+from pulp import *
+
 
 # https://towardsdatascience.com/linear-programming-and-discrete-optimization-with-python-using-pulp-449f3c5f6e99
-# Item = namedtuple("Item", ["index", "color", "item_conections"])
-
-
-class Item(NamedTuple):
-    """ 
-	"""
-
-    index: int
-    color: int
-    item_conections_index: List[int]
 
 
 def structure(input_data):
@@ -29,13 +18,8 @@ def structure(input_data):
         line = lines[i]
         parts = line.split()
         items_conections[int(parts[0]), int(parts[1])] = 1
+        items_conections[int(parts[1]), int(parts[0])] = 1
 
-    # all_items = set([line.split()[0] for line in lines[1:]])
-    # items_list = [Item(int(item), None, []) for item in all_items]
-    # for i in range(1, number_of_edges + 1):
-    #     line = lines[i]
-    #     parts = line.split()
-    #     items.append(Item(int(parts[0]), None, []))
     return items_conections, number_of_edges, number_of_vertices
 
 
@@ -45,33 +29,62 @@ def read_data(file_location):
     return output_data
 
 
-def solve_it(input_data):
-    item_list, K, _ = structure(input_data)
+def solve_it(input_data, number_of_possible_colors=100):
+    items_conections, number_of_edges, number_of_vertices = structure(input_data)
+    y = range(number_of_possible_colors)
+    nodes = range(number_of_vertices)
 
-    items = [item.index for item in item_list]
-    value = dict(zip(items, [item.value for item in item_list]))
-    weight = dict(zip(items, [item.weight for item in item_list]))
+    # initializes lp problem
+    lp = LpProblem("Coloring Problem", LpMinimize)
 
-    prob = LpProblem("knapsack", LpMaximize)
-    decision_vars = LpVariable.dicts("item", items, cat="Binary")
-    prob += lpSum([value[i] * decision_vars[i] for i in items])
-    prob += lpSum([weight[f] * decision_vars[f] for f in items]) <= K
-    prob.solve()
+    # variables x_ij to indicate whether node i is colored by color j;
+    xij = LpVariable.dicts("x", (nodes, y), lowBound=0, upBound=1, cat="Integer")
 
-    name_piked = [
-        variable.name for variable in prob.variables() if variable.varValue != 0
+    # variables yj to indicate whether color j was used
+    yj = LpVariable.dicts("y", y, lowBound=0, upBound=1, cat="Integer")
+
+    # objective is the sum of yj over all j
+    obj = lpSum(yj[j] for j in y)
+    lp += obj, "Objective Function"
+
+    # constraint s.t. each node uses exactly 1 color
+    for r in nodes:
+        jsum = 0.0
+        for j in y:
+            jsum += xij[r][j]
+        lp += jsum == 1, ""
+
+    # constraint s.t. adjacent nodes do not have the same color
+    for row in range(0, number_of_vertices):
+        for col in range(0, number_of_vertices):
+            if items_conections[row, col] == 1:
+                for j in y:
+                    lp += xij[row][j] + xij[col][j] <= 1, ""
+
+    # constraint s.t. if node i is assigned color k, color k is used
+    for i in nodes:
+        for j in y:
+            lp += xij[i][j] <= yj[j], ""
+
+    # constrinat for upper bound on # of colors used
+    lp += lpSum(yj[j] for j in y) <= number_of_possible_colors, ""
+
+    lp.solve()
+
+    all_variables = [
+        variable.name for variable in lp.variables() if variable.varValue != 0
     ]
 
-    picked = [item for item in item_list if "item_" + item.index in name_piked]
-    taken = [0 if item not in picked else 1 for item in item_list]
-
-    opt_value = sum([item.value for item in picked])
-    output_data = str(int(opt_value)) + " " + str(1) + "\n"
-    output_data += " ".join(map(str, taken))
+    # setting the structure to be as the assigment asks
+    colors_index = [item.split("_")[1] for item in all_variables if "y_" in item]
+    color_of_each_item = [item.split("_")[2] for item in all_variables if "x_" in item]
+    opt_value = len(colors_index)
+    output_data = str(int(opt_value)) + " " + str(0) + "\n"
+    output_data += " ".join(map(str, color_of_each_item))
     return output_data
 
 
 if __name__ == "__main__":
     string_file = read_data(sys.argv[1])
-    print(structure(string_file))
+    print(solve_it(string_file))
 
