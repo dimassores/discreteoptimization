@@ -70,8 +70,7 @@ def solve_it(input_data: str):
     lp += pl.lpSum(yj[j] for j in y) <= number_of_possible_colors, ""
 
     # solves lp and prints optimal solution/objective value
-    solver = pl.get_solver("COIN_CMD")
-    lp.solve(solver)
+    lp.solve()
 
     all_variables = [
         variable.name for variable in lp.variables() if variable.varValue != 0
